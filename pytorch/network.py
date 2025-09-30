@@ -21,8 +21,13 @@ class TorchNetwork(nn.Module):
 
         self.activation_func = torch.sigmoid
         self.output_func = torch.softmax
-        self.loss_func = nn.BCEWithLogitsLoss()
+        #self.loss_func = nn.BCEWithLogitsLoss()
+        self.loss_func = nn.MSELoss()
+
         self.optimizer = optim.SGD(self.parameters(), lr=learning_rate)
+
+        self.train_accuracies = []
+        self.val_accuracies = []
 
 
 
@@ -31,21 +36,26 @@ class TorchNetwork(nn.Module):
         TODO: Implement the forward propagation algorithm.
         The method should return the output of the network.
         '''
-        pass
+        x = self.activation_func(self.linear1(x_train))
+        x = self.activation_func(self.linear2(x))
+        x = self.activation_func(self.linear3(x))
+        return self.output_func(x, dim=1)
 
 
     def _backward_pass(self, y_train, output):
         '''
         TODO: Implement the backpropagation algorithm responsible for updating the weights of the neural network.
         '''
-        pass
+        loss = self.loss_func(output, y_train.float())
+        loss.backward()
+        return loss
 
 
     def _update_weights(self):
         '''
         TODO: Update the network weights according to stochastic gradient descent.
         '''
-        pass
+        self.optimizer.step()
 
 
     def _flatten(self, x):
@@ -70,7 +80,9 @@ class TorchNetwork(nn.Module):
 
         The method should return the index of the most likeliest output class.
         '''
-        pass
+        x = self._flatten(x)
+        output = self._forward_pass(x)
+        return output.argmax(dim=1)
 
 
     def fit(self, train_loader, val_loader):
@@ -88,6 +100,8 @@ class TorchNetwork(nn.Module):
                 self._update_weights()
 
             self._print_learning_progress(start_time, iteration, train_loader, val_loader)
+            self.train_accuracies.append(self.compute_accuracy(train_loader))
+            self.val_accuracies.append(self.compute_accuracy(val_loader))
 
 
 
