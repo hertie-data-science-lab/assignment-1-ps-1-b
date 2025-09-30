@@ -44,8 +44,37 @@ class Network():
         TODO: Implement the forward propagation algorithm.
 
         The method should return the output of the network.
+
+        The forward pass turns input pixels into class probabilities by stacking:
+        - Affine linear function
+        - Non-linear activation (sigmoid) for hidden layers
+        - Linear output function
+        - Softmax converting scores into probabilities
+
+        We will cache everything for backprop
         '''
-        pass
+        X = np.asarray(x_train, dtype=float)
+        if X.ndim == 1: # single sample
+            X = X.reshape(1, -1)
+
+        W1, W2, W3 = self.params['W1'], self.params['W2'], self.params['W3']
+
+        Z1 = X @ W1.T
+        A1 = self.activation_func(Z1)
+
+        Z2 = A1 @ W2.T
+        A2 = self.activation_func(Z2)
+
+        Z3 = A2 @ W3.T
+        Y_hat = self.output_func(Z3)
+
+        # Cache for backward pass
+        self.params['X'] = X
+        self.params['Z1'], self.params['A1'] = Z1, A1
+        self.params['Z2'], self.params['A2'] = Z2, A2
+        self.params['Z3'], self.params['Y_hat'] = Z3, Y_hat
+
+        return Y_hat
 
 
     def _backward_pass(self, y_train, output):
@@ -53,16 +82,57 @@ class Network():
         TODO: Implement the backpropagation algorithm responsible for updating the weights of the neural network.
 
         The method should return a dictionary of the weight gradients which are used to update the weights in self._update_weights().
-
+        Backpropagation for 2 hidden sigmoid layers + softmax output with MSE loss.
+        Returns gradients for W1, W2, W3 (matching shapes of self.params weights).
         '''
-        pass
+        # Ensure 2D (batch-first) shapes
+        Y = np.asarray(y_train, dtype=float)
+        S = np.asarray(output, dtype=float)
+        if Y.ndim == 1:
+            Y = Y.reshape(1, -1)
+        if S.ndim == 1:
+            S = S.reshape(1, -1)
 
+        # Cached forward-pass values
+        X = self.params['X']  # (N, D)
+        A1 = self.params['A1']  # (N, H1)
+        A2 = self.params['A2']  # (N, H2)
+        W1, W2, W3 = self.params['W1'], self.params['W2'], self.params['W3']
+
+        N = X.shape[0]
+
+        # dL/ds for MSE: (s - y)/N
+        dL_ds = (S - Y) / N  # (N, K)
+
+        # dL/dz3 via softmax Jacobian: (diag(s) - s s^T) @ dL/ds
+        SV = S * dL_ds  # elementwise (N, K)
+        s_dot_v = np.sum(SV, axis=1, keepdims=True)  # (N, 1)
+        G3 = SV - S * s_dot_v  # (N, K)  -> gradient wrt Z3
+
+        # Backprop to hidden layer 2
+        sigma2_prime = self.activation_func_deriv(A2)  # (N, H2)
+        G2 = (G3 @ W3) * sigma2_prime  # (N, H2)
+
+        # Backprop to hidden layer 1
+        sigma1_prime = self.activation_func_deriv(A1)  # (N, H1)
+        G1 = (G2 @ W2) * sigma1_prime  # (N, H1)
+
+        # Weight gradients (out, in)
+        dW3 = G3.T @ A2  # (K, H2)
+        dW2 = G2.T @ A1  # (H2, H1)
+        dW1 = G1.T @ X  # (H1, D)
+
+        return {'dW1': dW1, 'dW2': dW2, 'dW3': dW3}
 
     def _update_weights(self, weights_gradient, learning_rate):
         '''
         TODO: Update the network weights according to stochastic gradient descent.
+        Stochastic Gradient Descent (SGD) weight update:
+        W <- W - lr * dW
         '''
-        pass
+        self.params['W1'] -= learning_rate * weights_gradient['dW1']
+        self.params['W2'] -= learning_rate * weights_gradient['dW2']
+        self.params['W3'] -= learning_rate * weights_gradient['dW3']
 
 
     def _print_learning_progress(self, start_time, iteration, x_train, y_train, x_val, y_val):
@@ -88,10 +158,21 @@ class Network():
     def predict(self, x):
         '''
         TODO: Implement the prediction making of the network.
-        The method should return the index of the most likeliest output class.
-        '''
-        pass
+        Return the index of the most likely class.
+        Accepts a single sample (D,) or a batch (N, D).
 
+        '''
+        X = np.asarray(x, dtype=float)
+        probs = self._forward_pass(X)  # softmax probabilities
+
+        # Single sample: ensure a plain int
+        if probs.ndim == 2 and probs.shape[0] == 1:
+            return int(np.argmax(probs, axis=1)[0])
+        if probs.ndim == 1:
+            return int(np.argmax(probs))
+
+        # Batch: return an array of class indices
+        return np.argmax(probs, axis=1)
 
 
     def fit(self, x_train, y_train, x_val, y_val, cosine_annealing_lr=False):
