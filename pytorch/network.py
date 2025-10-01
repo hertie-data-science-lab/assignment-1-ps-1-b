@@ -43,8 +43,8 @@ class TorchNetwork(nn.Module):
 
         x = self.activation_func(self.linear1(x_train))
         x = self.activation_func(self.linear2(x))
-        x = self.activation_func(self.linear3(x))
-        return self.output_func(x, dim=1)
+        logits = self.linear3(x)  # <— NO sigmoid here
+        return self.output_func(logits, dim=1)  # softmax over classes
 
 
     def _backward_pass(self, y_train, output):
@@ -56,16 +56,16 @@ class TorchNetwork(nn.Module):
         # before computing new gradients during backpropagation.
         self.optimizer.zero_grad(set_to_none=True)
 
-        # ChatGPT suggested this change to ensure y_train is a tensor
-        if not isinstance(y_train, torch.Tensor):
-            y = torch.tensor(y_train)
+        # Make sure targets are one-hot float with the right width
+        if y_train.dim() == 1:
+            y = nn.functional.one_hot(y_train, num_classes=output.size(1)).float()
         else:
-            y = y_train
-        if y.dim() == 1:
-            y = y.unsqueeze(0)
+            y = y_train.float()
+
+        # Match dtype/device
         y = y.to(output.device, dtype=output.dtype)
 
-        loss = self.loss_func(output, y_train.float())
+        loss = self.loss_func(output, y)  # <— use y, not y_train
         loss.backward()
         return loss
 
@@ -101,9 +101,11 @@ class TorchNetwork(nn.Module):
 
         The method should return the index of the most likeliest output class.
         '''
-        x = self._flatten(x)
-        output = self._forward_pass(x)
-        return output.argmax(dim=1)
+        self.eval()
+        with torch.no_grad():
+            x = self._flatten(x)
+            out = self._forward_pass(x)
+            return out.argmax(dim=1)
 
 
     def fit(self, train_loader, val_loader):
@@ -123,8 +125,6 @@ class TorchNetwork(nn.Module):
             self._print_learning_progress(start_time, iteration, train_loader, val_loader)
             self.train_accuracies.append(self.compute_accuracy(train_loader))
             self.val_accuracies.append(self.compute_accuracy(val_loader))
-
-
 
 
     def compute_accuracy(self, data_loader):
