@@ -20,6 +20,8 @@ class Network():
 
         self.params = self._initialize_weights()
 
+        self.train_accuracies = []
+        self.val_accuracies = []
 
     def _initialize_weights(self):
         # number of neurons in each layer
@@ -239,3 +241,8 @@ class Network():
                 self._update_weights(weights_gradient, learning_rate=learning_rate)
 
             self._print_learning_progress(start_time, iteration, x_train, y_train, x_val, y_val)
+
+            train_acc = self.compute_accuracy(x_train, y_train)
+            val_acc = self.compute_accuracy(x_val, y_val)
+            self.train_accuracies.append(train_acc)
+            self.val_accuracies.append(val_acc)
