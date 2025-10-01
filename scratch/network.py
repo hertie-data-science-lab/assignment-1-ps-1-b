@@ -32,8 +32,11 @@ class Network():
         np.random.seed(self.random_state)
         params = {
             'W1': np.random.rand(hidden_layer_1, input_layer) - 0.5,
+            # 'b1': np.zeros((1, hidden_layer_1)),
             'W2': np.random.rand(hidden_layer_2, hidden_layer_1) - 0.5,
+            # 'b2': np.zeros((1, hidden_layer_2)),
             'W3': np.random.rand(output_layer, hidden_layer_2) - 0.5,
+            # 'b3': np.zeros((1, output_layer)),
         }
 
         return params
@@ -52,6 +55,8 @@ class Network():
         - Softmax converting scores into probabilities
 
         We will cache everything for backprop
+
+        Comment: I tried to add biases. The network learns almost identically.
         '''
         X = np.asarray(x_train, dtype=float)
         if X.ndim == 1: # single sample
@@ -68,8 +73,27 @@ class Network():
         A2 = self.activation_func(Z2)
 
         # Layer 3 (Hidden Layer 2 to Output Layer)
-        Z3 = A2 @ W3.T
-        Y_hat = self.output_func(Z3)
+        Z3 = A2 @ W3.T # Need the transpose for correct shape!
+
+        # ChatGPT suggestion
+        Z3 = Z3 - np.max(Z3, axis=1, keepdims=True)  # stability
+        Y_hat = self.output_func(Z3.T).T  # transpose in/out
+
+        # If biases are to be used, add biases to params:
+        # W1, b1 = self.params['W1'], self.params['b1']
+        # W2, b2 = self.params['W2'], self.params['b2']
+        # W3, b3 = self.params['W3'], self.params['b3']
+        #
+        # Z1 = X @ W1.T + b1
+        # A1 = self.activation_func(Z1)
+        #
+        # Z2 = A1 @ W2.T + b2
+        # A2 = self.activation_func(Z2)
+        #
+        # Z3 = A2 @ W3.T + b3
+        # ChatGPT suggestion
+        # Z3 = Z3 - np.max(Z3, axis=1, keepdims=True)
+        # Y_hat = self.output_func(Z3.T).T
 
         # Cache for backward pass
         self.params['X'] = X
@@ -116,20 +140,25 @@ class Network():
         G3 = SV - S * s_dot_v  # (N, K)  -> gradient wrt Z3
 
         # Backpropagation to Hidden Layers
-        # Backprop to hidden layer 2
-        sigma2_prime = self.activation_func_deriv(A2)  # (N, H2)
+        # Sigmoid derivatives (safe: uses activations)
+        sigma2_prime = A2 * (1.0 - A2)  # (N, H2)
         G2 = (G3 @ W3) * sigma2_prime  # (N, H2)
 
-        # Backprop to hidden layer 1
-        sigma1_prime = self.activation_func_deriv(A1)  # (N, H1)
+        sigma1_prime = A1 * (1.0 - A1)  # (N, H1)
         G1 = (G2 @ W2) * sigma1_prime  # (N, H1)
 
-        # Weight gradients (out, in)
-        dW3 = G3.T @ A2  # (K, H2)
-        dW2 = G2.T @ A1  # (H2, H1)
-        dW1 = G1.T @ X  # (H1, D)
+        # Weight gradients
+        dW3 = G3.T @ A2
+        dW2 = G2.T @ A1
+        dW1 = G1.T @ X
+
+        # Bias gradients
+        # db3 = np.sum(G3, axis=0, keepdims=True)
+        # db2 = np.sum(G2, axis=0, keepdims=True)
+        # db1 = np.sum(G1, axis=0, keepdims=True)
 
         return {'dW1': dW1, 'dW2': dW2, 'dW3': dW3}
+                # 'db1': db1, 'db2': db2, 'db3': db3}
 
     def _update_weights(self, weights_gradient, learning_rate):
         '''
@@ -140,7 +169,9 @@ class Network():
         self.params['W1'] -= learning_rate * weights_gradient['dW1']
         self.params['W2'] -= learning_rate * weights_gradient['dW2']
         self.params['W3'] -= learning_rate * weights_gradient['dW3']
-
+        # self.params['b1'] -= learning_rate * weights_gradient['db1']
+        # self.params['b2'] -= learning_rate * weights_gradient['db2']
+        # self.params['b3'] -= learning_rate * weights_gradient['db3']
 
     def _print_learning_progress(self, start_time, iteration, x_train, y_train, x_val, y_val):
         train_accuracy = self.compute_accuracy(x_train, y_train)
@@ -194,17 +225,17 @@ class Network():
 
         for iteration in range(self.epochs):
             for x, y in zip(x_train, y_train):
-                
+
                 if cosine_annealing_lr:
-                    learning_rate = cosine_annealing(self.learning_rate, 
-                                                     iteration, 
-                                                     len(x_train), 
+                    learning_rate = cosine_annealing(self.learning_rate,
+                                                     iteration,
+                                                     len(x_train),
                                                      self.learning_rate)
-                else: 
+                else:
                     learning_rate = self.learning_rate
                 output = self._forward_pass(x)
                 weights_gradient = self._backward_pass(y, output)
-                
+
                 self._update_weights(weights_gradient, learning_rate=learning_rate)
 
             self._print_learning_progress(start_time, iteration, x_train, y_train, x_val, y_val)
