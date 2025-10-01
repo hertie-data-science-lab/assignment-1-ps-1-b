@@ -21,6 +21,7 @@ class TorchNetwork(nn.Module):
 
         self.activation_func = torch.sigmoid
         self.output_func = torch.softmax
+
         #self.loss_func = nn.BCEWithLogitsLoss()
         self.loss_func = nn.MSELoss()
 
@@ -30,12 +31,16 @@ class TorchNetwork(nn.Module):
         self.val_accuracies = []
 
 
-
     def _forward_pass(self, x_train):
         '''
         TODO: Implement the forward propagation algorithm.
         The method should return the output of the network.
         '''
+
+        x = x_train
+        if x.dim() == 1:
+            x = x.unsqueeze(0)
+
         x = self.activation_func(self.linear1(x_train))
         x = self.activation_func(self.linear2(x))
         x = self.activation_func(self.linear3(x))
@@ -45,7 +50,21 @@ class TorchNetwork(nn.Module):
     def _backward_pass(self, y_train, output):
         '''
         TODO: Implement the backpropagation algorithm responsible for updating the weights of the neural network.
+
         '''
+        # Add ´self.optimizer.zero_grad´ to clear gradients from the previous iteration
+        # before computing new gradients during backpropagation.
+        self.optimizer.zero_grad(set_to_none=True)
+
+        # ChatGPT suggested this change to ensure y_train is a tensor
+        if not isinstance(y_train, torch.Tensor):
+            y = torch.tensor(y_train)
+        else:
+            y = y_train
+        if y.dim() == 1:
+            y = y.unsqueeze(0)
+        y = y.to(output.device, dtype=output.dtype)
+
         loss = self.loss_func(output, y_train.float())
         loss.backward()
         return loss
@@ -54,6 +73,8 @@ class TorchNetwork(nn.Module):
     def _update_weights(self):
         '''
         TODO: Update the network weights according to stochastic gradient descent.
+
+        Already implemented.
         '''
         self.optimizer.step()
 
