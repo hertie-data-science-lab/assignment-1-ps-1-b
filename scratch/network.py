@@ -59,12 +59,15 @@ class Network():
 
         W1, W2, W3 = self.params['W1'], self.params['W2'], self.params['W3']
 
+        # Layer 1 (Input to Hidden Layer 1)
         Z1 = X @ W1.T
         A1 = self.activation_func(Z1)
 
+        # Layer 2 (Hidden Layer 1 to Hidden Layer 2)
         Z2 = A1 @ W2.T
         A2 = self.activation_func(Z2)
 
+        # Layer 3 (Hidden Layer 2 to Output Layer)
         Z3 = A2 @ W3.T
         Y_hat = self.output_func(Z3)
 
@@ -81,7 +84,8 @@ class Network():
         '''
         TODO: Implement the backpropagation algorithm responsible for updating the weights of the neural network.
 
-        The method should return a dictionary of the weight gradients which are used to update the weights in self._update_weights().
+        The method should return a dictionary of the weight gradients which are used to update the weights in
+        self._update_weights().
         Backpropagation for 2 hidden sigmoid layers + softmax output with MSE loss.
         Returns gradients for W1, W2, W3 (matching shapes of self.params weights).
         '''
@@ -101,14 +105,17 @@ class Network():
 
         N = X.shape[0]
 
+        # Gradient of Loss w.r.t. Final Layer Input
         # dL/ds for MSE: (s - y)/N
         dL_ds = (S - Y) / N  # (N, K)
 
+        # Gradient of Loss w.r.t. Final Layer Input
         # dL/dz3 via softmax Jacobian: (diag(s) - s s^T) @ dL/ds
         SV = S * dL_ds  # elementwise (N, K)
         s_dot_v = np.sum(SV, axis=1, keepdims=True)  # (N, 1)
         G3 = SV - S * s_dot_v  # (N, K)  -> gradient wrt Z3
 
+        # Backpropagation to Hidden Layers
         # Backprop to hidden layer 2
         sigma2_prime = self.activation_func_deriv(A2)  # (N, H2)
         G2 = (G3 @ W3) * sigma2_prime  # (N, H2)
@@ -158,16 +165,22 @@ class Network():
     def predict(self, x):
         '''
         TODO: Implement the prediction making of the network.
-        Return the index of the most likely class.
-        Accepts a single sample (D,) or a batch (N, D).
 
+        This method predicts the class index for the given input `x`.
+        Parameters:
+        - x: Input data, either a single sample or a batch of samples.
+
+        Returns:
+        - int or np.ndarray: Predicted class index/indices.
         '''
         X = np.asarray(x, dtype=float)
         probs = self._forward_pass(X)  # softmax probabilities
 
         # Single sample: ensure a plain int
+        # If `x` is a single sample (D,), it returns the index of the most likely class as an integer.
         if probs.ndim == 2 and probs.shape[0] == 1:
             return int(np.argmax(probs, axis=1)[0])
+        # If `x` is a batch of samples (N, D), it returns an array of class indices.
         if probs.ndim == 1:
             return int(np.argmax(probs))
 
