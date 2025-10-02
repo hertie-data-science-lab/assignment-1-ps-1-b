@@ -81,22 +81,6 @@ class Network():
         Z3 = Z3 - np.max(Z3, axis=1, keepdims=True)  # stability
         Y_hat = self.output_func(Z3.T).T  # transpose in/out
 
-        # If biases are to be used, add biases to params:
-        # W1, b1 = self.params['W1'], self.params['b1']
-        # W2, b2 = self.params['W2'], self.params['b2']
-        # W3, b3 = self.params['W3'], self.params['b3']
-        #
-        # Z1 = X @ W1.T + b1
-        # A1 = self.activation_func(Z1)
-        #
-        # Z2 = A1 @ W2.T + b2
-        # A2 = self.activation_func(Z2)
-        #
-        # Z3 = A2 @ W3.T + b3
-        # ChatGPT suggestion
-        # Z3 = Z3 - np.max(Z3, axis=1, keepdims=True)
-        # Y_hat = self.output_func(Z3.T).T
-
         # Cache for backward pass
         self.params['X'] = X
         self.params['Z1'], self.params['A1'] = Z1, A1
@@ -154,11 +138,6 @@ class Network():
         dW2 = G2.T @ A1
         dW1 = G1.T @ X
 
-        # Bias gradients
-        # db3 = np.sum(G3, axis=0, keepdims=True)
-        # db2 = np.sum(G2, axis=0, keepdims=True)
-        # db1 = np.sum(G1, axis=0, keepdims=True)
-
         return {'dW1': dW1, 'dW2': dW2, 'dW3': dW3}
                 # 'db1': db1, 'db2': db2, 'db3': db3}
 
@@ -171,9 +150,6 @@ class Network():
         self.params['W1'] -= learning_rate * weights_gradient['dW1']
         self.params['W2'] -= learning_rate * weights_gradient['dW2']
         self.params['W3'] -= learning_rate * weights_gradient['dW3']
-        # self.params['b1'] -= learning_rate * weights_gradient['db1']
-        # self.params['b2'] -= learning_rate * weights_gradient['db2']
-        # self.params['b3'] -= learning_rate * weights_gradient['db3']
 
     def _print_learning_progress(self, start_time, iteration, x_train, y_train, x_val, y_val):
         train_accuracy = self.compute_accuracy(x_train, y_train)
