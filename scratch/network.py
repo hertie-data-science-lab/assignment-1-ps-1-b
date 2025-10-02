@@ -194,7 +194,7 @@ class Network():
         return np.argmax(probs, axis=1)
 
 
-    def fit(self, x_train, y_train, x_val, y_val, cosine_annealing_lr=False):
+    def fit(self, x_train, y_train, x_val, y_val, cosine_annealing_lr=False, verbose=True):
 
         start_time = time.time()
 
@@ -213,7 +213,8 @@ class Network():
 
                 self._update_weights(weights_gradient, learning_rate=learning_rate)
 
-            self._print_learning_progress(start_time, iteration, x_train, y_train, x_val, y_val)
+            if verbose:
+                self._print_learning_progress(start_time, iteration, x_train, y_train, x_val, y_val)
 
             train_acc = self.compute_accuracy(x_train, y_train)
             val_acc = self.compute_accuracy(x_val, y_val)
