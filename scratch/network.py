@@ -34,11 +34,8 @@ class Network():
         np.random.seed(self.random_state)
         params = {
             'W1': np.random.rand(hidden_layer_1, input_layer) - 0.5,
-            # 'b1': np.zeros((1, hidden_layer_1)),
             'W2': np.random.rand(hidden_layer_2, hidden_layer_1) - 0.5,
-            # 'b2': np.zeros((1, hidden_layer_2)),
             'W3': np.random.rand(output_layer, hidden_layer_2) - 0.5,
-            # 'b3': np.zeros((1, output_layer)),
         }
 
         return params
